@@ -12,24 +12,24 @@
 
   // Initial sample tasks for first-time users
   const SAMPLE_TASKS = [
-    {
-      id: 'task-1',
-      text: 'Welcome to your new Todo List! 👋',
-      completed: false,
-      createdAt: Date.now() - 10000,
-    },
-    {
-      id: 'task-2',
-      text: 'Mark tasks as completed by checking the box',
-      completed: true,
-      createdAt: Date.now() - 5000,
-    },
-    {
-      id: 'task-3',
-      text: 'Search or filter your tasks anytime using the controls above',
-      completed: false,
-      createdAt: Date.now(),
-    },
+    // {
+    //   id: 'task-1',
+    //   text: 'Welcome to your new Todo List! 👋',
+    //   completed: false,
+    //   createdAt: Date.now() - 10000,
+    // },
+    // {
+    //   id: 'task-2',
+    //   text: 'Mark tasks as completed by checking the box',
+    //   completed: true,
+    //   createdAt: Date.now() - 5000,
+    // },
+    // {
+    //   id: 'task-3',
+    //   text: 'Search or filter your tasks anytime using the controls above',
+    //   completed: false,
+    //   createdAt: Date.now(),
+    // },
   ];
 
   // --- Application State ---
