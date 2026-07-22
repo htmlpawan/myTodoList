@@ -1,0 +1,6 @@
+{
+  "name": "Todo List",
+  "description": "A clean, modern single-page todo list application with real-time search, filters, task counters, and local storage persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

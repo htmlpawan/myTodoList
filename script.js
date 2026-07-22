@@ -1,0 +1,394 @@
+/**
+ * Todo List Application Script
+ * Clean Vanilla JavaScript (ES6+) with LocalStorage persistence,
+ * real-time filtering, search, inline editing, and statistics.
+ */
+
+(function () {
+  'use strict';
+
+  // --- Constants & Config ---
+  const STORAGE_KEY = 'todo_app_tasks_v1';
+
+  // Initial sample tasks for first-time users
+  const SAMPLE_TASKS = [
+    {
+      id: 'task-1',
+      text: 'Welcome to your new Todo List! 👋',
+      completed: false,
+      createdAt: Date.now() - 10000,
+    },
+    {
+      id: 'task-2',
+      text: 'Mark tasks as completed by checking the box',
+      completed: true,
+      createdAt: Date.now() - 5000,
+    },
+    {
+      id: 'task-3',
+      text: 'Search or filter your tasks anytime using the controls above',
+      completed: false,
+      createdAt: Date.now(),
+    },
+  ];
+
+  // --- Application State ---
+  let tasks = [];
+  let currentFilter = 'all'; // 'all' | 'active' | 'completed'
+  let searchQuery = '';
+  let editingTaskId = null;
+
+  // --- DOM Elements ---
+  const todoForm = document.getElementById('todo-form');
+  const taskInput = document.getElementById('task-input');
+  const searchInput = document.getElementById('search-input');
+  const clearSearchBtn = document.getElementById('clear-search-btn');
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  const taskList = document.getElementById('task-list');
+  const emptyState = document.getElementById('empty-state');
+  const emptyTitle = document.getElementById('empty-title');
+  const emptySubtitle = document.getElementById('empty-subtitle');
+  const clearCompletedBtn = document.getElementById('clear-completed-btn');
+
+  // Stat Elements
+  const statTotal = document.getElementById('stat-total');
+  const statPending = document.getElementById('stat-pending');
+  const statCompleted = document.getElementById('stat-completed');
+  const countAll = document.getElementById('count-all');
+  const countActive = document.getElementById('count-active');
+  const countCompleted = document.getElementById('count-completed');
+
+  // --- Storage Helper Functions ---
+  function loadTasks() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        tasks = JSON.parse(stored);
+      } else {
+        // Load default sample tasks if first time
+        tasks = [...SAMPLE_TASKS];
+        saveTasks();
+      }
+    } catch (e) {
+      console.error('Failed to parse tasks from localStorage:', e);
+      tasks = [...SAMPLE_TASKS];
+    }
+  }
+
+  function saveTasks() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } catch (e) {
+      console.error('Failed to save tasks to localStorage:', e);
+    }
+  }
+
+  // --- Task Operations ---
+  function addTask(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const newTask = {
+      id: 'task-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      text: trimmed,
+      completed: false,
+      createdAt: Date.now(),
+    };
+
+    tasks.unshift(newTask); // Add to top of list
+    saveTasks();
+    render();
+  }
+
+  function toggleTask(id) {
+    tasks = tasks.map((task) => {
+      if (task.id === id) {
+        return { ...task, completed: !task.completed };
+      }
+      return task;
+    });
+    saveTasks();
+    render();
+  }
+
+  function deleteTask(id) {
+    const taskElement = document.querySelector(`[data-id="${id}"]`);
+    if (taskElement) {
+      taskElement.classList.add('removing');
+      // Wait for CSS animation before removing from state
+      setTimeout(() => {
+        tasks = tasks.filter((task) => task.id !== id);
+        saveTasks();
+        render();
+      }, 250);
+    } else {
+      tasks = tasks.filter((task) => task.id !== id);
+      saveTasks();
+      render();
+    }
+  }
+
+  function startEditTask(id) {
+    editingTaskId = id;
+    render();
+  }
+
+  function saveEditTask(id, newText) {
+    const trimmed = newText.trim();
+    if (trimmed) {
+      tasks = tasks.map((task) => {
+        if (task.id === id) {
+          return { ...task, text: trimmed };
+        }
+        return task;
+      });
+      saveTasks();
+    }
+    editingTaskId = null;
+    render();
+  }
+
+  function cancelEditTask() {
+    editingTaskId = null;
+    render();
+  }
+
+  function clearCompleted() {
+    tasks = tasks.filter((task) => !task.completed);
+    saveTasks();
+    render();
+  }
+
+  // --- Filtering & Counting Helpers ---
+  function getFilteredTasks() {
+    return tasks.filter((task) => {
+      // Apply Filter Tab
+      if (currentFilter === 'active' && task.completed) return false;
+      if (currentFilter === 'completed' && !task.completed) return false;
+
+      // Apply Search Query
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        return task.text.toLowerCase().includes(query);
+      }
+
+      return true;
+    });
+  }
+
+  function updateStatistics() {
+    const totalCount = tasks.length;
+    const completedCount = tasks.filter((t) => t.completed).length;
+    const pendingCount = totalCount - completedCount;
+
+    statTotal.textContent = totalCount;
+    statPending.textContent = pendingCount;
+    statCompleted.textContent = completedCount;
+
+    countAll.textContent = totalCount;
+    countActive.textContent = pendingCount;
+    countCompleted.textContent = completedCount;
+
+    // Show/hide Clear Completed button
+    if (completedCount > 0) {
+      clearCompletedBtn.classList.remove('hidden');
+    } else {
+      clearCompletedBtn.classList.add('hidden');
+    }
+  }
+
+  // --- Rendering ---
+  function render() {
+    updateStatistics();
+    const filteredTasks = getFilteredTasks();
+
+    // Clear task list
+    taskList.innerHTML = '';
+
+    if (filteredTasks.length === 0) {
+      // Render Empty State
+      taskList.classList.add('hidden');
+      emptyState.classList.remove('hidden');
+
+      if (searchQuery.trim()) {
+        emptyTitle.textContent = 'No matching tasks';
+        emptySubtitle.textContent = `No tasks found matching "${searchQuery.trim()}".`;
+      } else if (currentFilter === 'active') {
+        emptyTitle.textContent = 'No active tasks';
+        emptySubtitle.textContent = 'Great job! You have completed all active tasks.';
+      } else if (currentFilter === 'completed') {
+        emptyTitle.textContent = 'No completed tasks';
+        emptySubtitle.textContent = 'You haven\'t completed any tasks yet. Keep going!';
+      } else {
+        emptyTitle.textContent = 'No tasks found';
+        emptySubtitle.textContent = 'You are all caught up! Add a new task above to get started.';
+      }
+    } else {
+      taskList.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+
+      filteredTasks.forEach((task) => {
+        const li = document.createElement('li');
+        li.className = `task-item ${task.completed ? 'completed' : ''}`;
+        li.setAttribute('data-id', task.id);
+
+        if (editingTaskId === task.id) {
+          // --- Inline Edit Mode ---
+          li.innerHTML = `
+            <form class="edit-form" id="edit-form-${task.id}">
+              <input 
+                type="text" 
+                class="edit-input" 
+                value="${escapeHtml(task.text)}" 
+                maxlength="200" 
+                aria-label="Edit task text"
+              />
+              <button type="submit" class="save-btn" title="Save changes">Save</button>
+              <button type="button" class="cancel-btn" title="Cancel edit">Cancel</button>
+            </form>
+          `;
+
+          // Event Listeners for Edit Mode
+          const editForm = li.querySelector('.edit-form');
+          const editInput = li.querySelector('.edit-input');
+          const cancelBtn = li.querySelector('.cancel-btn');
+
+          // Auto-focus and select edit input
+          setTimeout(() => {
+            editInput.focus();
+            editInput.setSelectionRange(editInput.value.length, editInput.value.length);
+          }, 0);
+
+          editForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveEditTask(task.id, editInput.value);
+          });
+
+          cancelBtn.addEventListener('click', () => {
+            cancelEditTask();
+          });
+
+          // Cancel on Escape key
+          editInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+              cancelEditTask();
+            }
+          });
+        } else {
+          // --- Normal View Mode ---
+          li.innerHTML = `
+            <div class="task-content">
+              <label class="checkbox-container" title="${task.completed ? 'Mark incomplete' : 'Mark completed'}">
+                <input type="checkbox" ${task.completed ? 'checked' : ''} aria-label="Toggle completed state" />
+                <span class="checkmark"></span>
+              </label>
+              <span class="task-text" title="Double click to edit">${escapeHtml(task.text)}</span>
+            </div>
+            <div class="task-actions">
+              <button type="button" class="action-btn edit-btn" title="Edit task" aria-label="Edit task">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button type="button" class="action-btn delete-btn" title="Delete task" aria-label="Delete task">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          `;
+
+          // Checkbox toggle event listener
+          const checkbox = li.querySelector('input[type="checkbox"]');
+          checkbox.addEventListener('change', () => toggleTask(task.id));
+
+          // Task text double click to edit
+          const taskTextSpan = li.querySelector('.task-text');
+          taskTextSpan.addEventListener('dblclick', () => startEditTask(task.id));
+
+          // Edit button
+          const editBtn = li.querySelector('.edit-btn');
+          editBtn.addEventListener('click', () => startEditTask(task.id));
+
+          // Delete button
+          const deleteBtn = li.querySelector('.delete-btn');
+          deleteBtn.addEventListener('click', () => deleteTask(task.id));
+        }
+
+        taskList.appendChild(li);
+      });
+    }
+  }
+
+  // Helper to escape HTML special characters for safety
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // --- Event Listeners Setup ---
+  function initEventListeners() {
+    // Form submit to add new task
+    todoForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      addTask(taskInput.value);
+      taskInput.value = '';
+      taskInput.focus();
+    });
+
+    // Real-time search input
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      if (searchQuery.trim().length > 0) {
+        clearSearchBtn.classList.remove('hidden');
+      } else {
+        clearSearchBtn.classList.add('hidden');
+      }
+      render();
+    });
+
+    // Clear search button
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      searchQuery = '';
+      clearSearchBtn.classList.add('hidden');
+      searchInput.focus();
+      render();
+    });
+
+    // Filter Buttons
+    filterBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.getAttribute('data-filter');
+        render();
+      });
+    });
+
+    // Clear completed button
+    clearCompletedBtn.addEventListener('click', () => {
+      clearCompleted();
+    });
+  }
+
+  // --- Initialization ---
+  function init() {
+    loadTasks();
+    initEventListeners();
+    render();
+  }
+
+  // Start app when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
