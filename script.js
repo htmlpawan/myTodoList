@@ -191,6 +191,8 @@
 
     // Show/hide Clear Completed button
     if (completedCount > 0) {
+      //localStorage.removeItem('todo_app_tasks_v1'); // Ensure storage is updated
+      //render();
       clearCompletedBtn.classList.remove('hidden');
     } else {
       clearCompletedBtn.classList.add('hidden');
