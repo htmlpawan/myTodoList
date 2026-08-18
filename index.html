@@ -2,8 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, user-scalable=no" />
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Todo List</title>
     <!-- Modern web font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,9 +22,10 @@
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
               </svg>
             </div>
-            <h1>My Todo List</h1>
+            <h3>My Todo List</h3>
           </div>
-          <!-- Stats Bar -->
+
+           <!-- Stats Bar -->
         <section class="stats-bar hidden" aria-label="Task statistics">
           <div class="stat-item">
             <span class="stat-value" id="stat-total">0</span>
@@ -44,7 +44,7 @@
         </section>
 
         <!-- Input Form Section -->
-        <section class="input-section" style="width: 100%;">
+        <section style="width: 100%;" class="input-section">
           <form id="todo-form" class="todo-form" autocomplete="off">
             <div class="input-wrapper">
               <input 
@@ -64,11 +64,29 @@
                 <span>Add Task</span>
               </button>
             </div>
+            <!-- <span class="input-hint">Press <kbd>Enter</kbd> to add task</span> -->
           </form>
         </section>
 
         <!-- Controls Section: Search & Filters -->
-        <section class="controls-section" style="width: 100%;">
+        <section style="width: 100%;" class="controls-section">
+          <!-- Search Box -->
+          <div class="search-box hidden">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              id="search-input" 
+              class="search-input" 
+              placeholder="Search tasks..." 
+              aria-label="Search tasks"
+            />
+            <button type="button" id="clear-search-btn" class="clear-search-btn hidden" aria-label="Clear search">
+              &times;
+            </button>
+          </div>
 
           <!-- Filter Buttons -->
           <nav class="filter-group" aria-label="Filter tasks">
@@ -85,7 +103,7 @@
         </section>
         </header>
 
-        
+       
 
         <!-- Task List Container -->
         <section class="task-list-section">
@@ -105,7 +123,7 @@
         </section>
 
         <!-- Footer Actions -->
-        <footer class="app-footer hidden">
+        <footer class="app-footer">
           <span class="footer-tip">Tip: Double-click task text or click Edit to modify</span>
           <button type="button" id="clear-completed-btn" class="clear-completed-btn hidden">
             Clear Completed
