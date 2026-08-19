@@ -3,6 +3,10 @@
  * Clean Vanilla JavaScript (ES6+) with LocalStorage persistence,
  * real-time filtering, search, inline editing, and statistics.
  */
+const SUPABASE_URL = 'https://uohtbbdehjskdpmoykrr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_TrQxF_JcluMbyOraDq7KZQ_uFYtTnbB'; // safe to expose client-side
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 (function () {
   'use strict';
@@ -59,21 +63,25 @@
   const countCompleted = document.getElementById('count-completed');
 
   // --- Storage Helper Functions ---
-  function loadTasks() {
+   async function loadTasks() {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        tasks = JSON.parse(stored);
-      } else {
-        // Load default sample tasks if first time
-        tasks = [...SAMPLE_TASKS];
-        saveTasks();
-      }
+      // const stored = localStorage.getItem(STORAGE_KEY);
+       const getData = await loadTasksDB();
+       tasks = getData;
+      // if (stored) {
+      //   tasks = JSON.parse(stored);
+      // } else {
+      //   // Load default sample tasks if first time
+      //   tasks = getData;
+      //   //saveTasks();;
+      // }
     } catch (e) {
       console.error('Failed to parse tasks from localStorage:', e);
-      tasks = [...SAMPLE_TASKS];
+      //tasks = [...SAMPLE_TASKS];
     }
+    
   }
+
 
   function saveTasks() {
     try {
@@ -91,14 +99,16 @@
     const newTask = {
       id: 'task-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       text: trimmed,
-      completed: false,
-      createdAt: Date.now(),
+      completed: false
     };
 
     tasks.unshift(newTask); // Add to top of list
-    saveTasks();
+    addTaskDB(newTask)
+    //saveTasks();;
     render();
   }
+
+
 
   function toggleTask(id) {
     tasks = tasks.map((task) => {
@@ -107,23 +117,24 @@
       }
       return task;
     });
-    saveTasks();
+    //saveTasks();;
     render();
   }
 
   function deleteTask(id) {
+    deleteTaskDB(id);
     const taskElement = document.querySelector(`[data-id="${id}"]`);
     if (taskElement) {
       taskElement.classList.add('removing');
       // Wait for CSS animation before removing from state
       setTimeout(() => {
         tasks = tasks.filter((task) => task.id !== id);
-        saveTasks();
+        //saveTasks();;
         render();
       }, 250);
     } else {
       tasks = tasks.filter((task) => task.id !== id);
-      saveTasks();
+      //saveTasks();;
       render();
     }
   }
@@ -142,7 +153,7 @@
         }
         return task;
       });
-      saveTasks();
+      //saveTasks();;
     }
     editingTaskId = null;
     render();
@@ -155,7 +166,7 @@
 
   function clearCompleted() {
     tasks = tasks.filter((task) => !task.completed);
-    saveTasks();
+    //saveTasks();;
     render();
   }
 
@@ -201,6 +212,7 @@
 
   // --- Rendering ---
   function render() {
+    loadTasks();
     updateStatistics();
     const filteredTasks = getFilteredTasks();
 
@@ -393,4 +405,44 @@
   } else {
     init();
   }
+  
+//------------------------------------------------------------DB Functions------------------------------------
+  async function loadTasksDB() {
+    const { data, error } = await supabaseClient
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Fetch failed:', error);
+      return [];
+    }
+    return data;
+  }
+
+
+async function addTaskDB(dataJson) {
+  const { data, error } = await supabaseClient
+    .from('tasks')
+    .insert([dataJson])
+    .select(); // returns the inserted row(s)
+
+  if (error) {
+    console.error('Insert failed:', error);
+    return null;
+  }
+  return data[0];
+}
+
+async function deleteTaskDB(id) {
+  const { error } = await supabaseClient
+    .from('tasks')
+    .delete()
+    .eq('id', id);
+
+  if (error) console.error('Delete failed:', error);
+}
+
+
 })();
+
