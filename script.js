@@ -69,6 +69,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
        const getData = await loadTasksDB();
       if (stored) {
         tasks = JSON.parse(stored);
+        tasks = getData;
+        saveTasks();
       } else {
         // Load default sample tasks if first time
         tasks = getData;
@@ -79,7 +81,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       //tasks = [...SAMPLE_TASKS];
     }
     
-       console.log(tasks);
+       console.log(getData);
   }
 
 
