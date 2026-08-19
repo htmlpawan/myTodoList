@@ -1,12 +1,12 @@
 const CACHE_NAME = 'todo-app-v1';
 const ASSETS_TO_CACHE = [
   '/',
-  '/index.html',
-  '/style.css',
-  '/script.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  'index.html',
+  'style.css',
+  'script.js',
+  'manifest.json',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
 ];
 
 // Install: cache the app shell
