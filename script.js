@@ -68,7 +68,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
        const getData = await loadTasksDB();
-       console.log(getData);
+      //  console.log(getData);
       if (stored) {
         tasks = JSON.parse(stored);
         tasks = getData;
@@ -118,7 +118,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   function toggleTask(id) {
     tasks = tasks.map((task) => {
       if (task.id === id) {
-      console.log(!task.completed);
+      // console.log(!task.completed);
       toggleTaskDB(id, !task.completed);
         return { ...task, completed: !task.completed };
       }
@@ -386,7 +386,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
     // Filter Buttons
     filterBtns.forEach((btn) => {
-      console.log("hi");
       btn.addEventListener('click', () => {
         filterBtns.forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
