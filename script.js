@@ -469,6 +469,16 @@ async function updateTextDB(id, text) {
   if (error) console.error('Update failed:', error);
 }
 
+//------------------------------Service Worker Registration---------------------------------------------
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => console.log('Service Worker registered:', reg.scope))
+      .catch((err) => console.error('Service Worker registration failed:', err));
+  });
+}
 
 })();
 
