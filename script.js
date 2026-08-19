@@ -41,6 +41,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   let currentFilter = 'all'; // 'all' | 'active' | 'completed'
   let searchQuery = '';
   let editingTaskId = null;
+  var allData = [];
 
   // --- DOM Elements ---
   const todoForm = document.getElementById('todo-form');
@@ -70,6 +71,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       if (stored) {
         tasks = JSON.parse(stored);
         tasks = getData;
+        allData = getData;
         saveTasks();
       } else {
         // Load default sample tasks if first time
@@ -384,6 +386,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
     // Filter Buttons
     filterBtns.forEach((btn) => {
+      console.log("hi");
       btn.addEventListener('click', () => {
         filterBtns.forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
@@ -399,8 +402,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   }
 
   // --- Initialization ---
-  function init() {
-    loadTasks();
+ async function init() {
+    await loadTasks();
     initEventListeners();
     render();
   }
@@ -452,7 +455,7 @@ async function deleteTaskDB(id) {
 async function toggleTaskDB(id, completed) {
   const { error } = await supabaseClient
     .from('tasks')
-    .update({ completed: !completed })
+    .update({ completed: completed })
     .eq('id', id);
 
   if (error) console.error('toggle failed:', error);
