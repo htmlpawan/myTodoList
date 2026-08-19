@@ -68,6 +68,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
        const getData = await loadTasksDB();
+       console.log(getData);
       if (stored) {
         tasks = JSON.parse(stored);
         tasks = getData;
@@ -79,7 +80,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
         saveTasks();
       }
       
-       console.log(getData);
     } catch (e) {
       console.error('Failed to parse tasks from localStorage:', e);
       //tasks = [...SAMPLE_TASKS];
