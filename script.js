@@ -41,7 +41,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   let currentFilter = 'all'; // 'all' | 'active' | 'completed'
   let searchQuery = '';
   let editingTaskId = null;
-  var allData = [];
 
   // --- DOM Elements ---
   const todoForm = document.getElementById('todo-form');
@@ -68,17 +67,9 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
        const getData = await loadTasksDB();
-      //  console.log(getData);
-      if (stored) {
         tasks = JSON.parse(stored);
         tasks = getData;
-        allData = getData;
         saveTasks();
-      } else {
-        // Load default sample tasks if first time
-        tasks = getData;
-        saveTasks();
-      }
       
     } catch (e) {
       console.error('Failed to parse tasks from localStorage:', e);
@@ -87,8 +78,18 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     
   }
 
+//   async function loadTasks() {
+//   try {
+//     tasks = await loadTasksDB();
+//     allData = tasks;
+//   } catch (e) {
+//     console.error('Failed to load tasks:', e);
+//     tasks = [];
+//   }
+// }
 
-  function saveTasks() {
+
+  async function saveTasks() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     } catch (e) {
@@ -108,8 +109,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     };
 
     tasks.unshift(newTask); // Add to top of list
-    addTaskDB(newTask)
-    saveTasks();;
+    addTaskDB(newTask);
+    saveTasks();
     render();
   }
 
@@ -118,9 +119,9 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   function toggleTask(id) {
     tasks = tasks.map((task) => {
       if (task.id === id) {
-      // console.log(!task.completed);
+      console.log(!task.completed);
       toggleTaskDB(id, !task.completed);
-        return { ...task, completed: !task.completed };
+      return { ...task, completed: !task.completed };
       }
       return task;
     });
@@ -220,7 +221,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
   // --- Rendering ---
   function render() {
-    loadTasks();
     updateStatistics();
     const filteredTasks = getFilteredTasks();
 
