@@ -76,12 +76,13 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
         tasks = getData;
         saveTasks();
       }
+      
+       console.log(getData);
     } catch (e) {
       console.error('Failed to parse tasks from localStorage:', e);
       //tasks = [...SAMPLE_TASKS];
     }
     
-       console.log(getData);
   }
 
 
@@ -115,6 +116,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   function toggleTask(id) {
     tasks = tasks.map((task) => {
       if (task.id === id) {
+      console.log(!task.completed);
+      toggleTaskDB(id, !task.completed);
         return { ...task, completed: !task.completed };
       }
       return task;
@@ -147,6 +150,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   }
 
   function saveEditTask(id, newText) {
+    updateTextDB(id, newText);
     const trimmed = newText.trim();
     if (trimmed) {
       tasks = tasks.map((task) => {
@@ -443,6 +447,24 @@ async function deleteTaskDB(id) {
     .eq('id', id);
 
   if (error) console.error('Delete failed:', error);
+}
+
+async function toggleTaskDB(id, completed) {
+  const { error } = await supabaseClient
+    .from('tasks')
+    .update({ completed: !completed })
+    .eq('id', id);
+
+  if (error) console.error('toggle failed:', error);
+}
+
+async function updateTextDB(id, text) {
+  const { error } = await supabaseClient
+    .from('tasks')
+    .update({ text: text })
+    .eq('id', id);
+
+  if (error) console.error('Update failed:', error);
 }
 
 
