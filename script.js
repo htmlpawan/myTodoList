@@ -65,21 +65,21 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   // --- Storage Helper Functions ---
    async function loadTasks() {
     try {
-      // const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEY);
        const getData = await loadTasksDB();
-       tasks = getData;
-      // if (stored) {
-      //   tasks = JSON.parse(stored);
-      // } else {
-      //   // Load default sample tasks if first time
-      //   tasks = getData;
-      //   //saveTasks();;
-      // }
+      if (stored) {
+        tasks = JSON.parse(stored);
+      } else {
+        // Load default sample tasks if first time
+        tasks = getData;
+        saveTasks();
+      }
     } catch (e) {
       console.error('Failed to parse tasks from localStorage:', e);
       //tasks = [...SAMPLE_TASKS];
     }
     
+       console.log(tasks);
   }
 
 
@@ -104,7 +104,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
     tasks.unshift(newTask); // Add to top of list
     addTaskDB(newTask)
-    //saveTasks();;
+    saveTasks();;
     render();
   }
 
@@ -117,7 +117,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       }
       return task;
     });
-    //saveTasks();;
+    saveTasks();;
     render();
   }
 
@@ -129,12 +129,12 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       // Wait for CSS animation before removing from state
       setTimeout(() => {
         tasks = tasks.filter((task) => task.id !== id);
-        //saveTasks();;
+        saveTasks();;
         render();
       }, 250);
     } else {
       tasks = tasks.filter((task) => task.id !== id);
-      //saveTasks();;
+      saveTasks();;
       render();
     }
   }
@@ -153,7 +153,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
         }
         return task;
       });
-      //saveTasks();;
+      saveTasks();;
     }
     editingTaskId = null;
     render();
@@ -166,7 +166,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
   function clearCompleted() {
     tasks = tasks.filter((task) => !task.completed);
-    //saveTasks();;
+    saveTasks();;
     render();
   }
 
