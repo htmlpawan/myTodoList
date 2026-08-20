@@ -137,6 +137,14 @@
       .header-title-wrapper {
         cursor: pointer;
       }
+
+      .task-date {
+          position: absolute;
+          font-size: 6px;
+          bottom: 2px;
+          left: 50%;
+          transform: translateX(-50%);
+      }
     </style>
 
   </head>
@@ -222,10 +230,10 @@
 
           <!-- Filter Buttons -->
           <nav class="filter-group" aria-label="Filter tasks">
-            <button type="button" class="filter-btn active" data-filter="all">
+            <button type="button" class="filter-btn" data-filter="all">
               All <span class="filter-count" id="count-all">0</span>
             </button>
-            <button type="button" class="filter-btn" data-filter="active">
+            <button type="button" class="filter-btn active" data-filter="active">
               Active <span class="filter-count" id="count-active">0</span>
             </button>
             <button type="button" class="filter-btn" data-filter="completed">

@@ -18,7 +18,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   // --- Application State ---
   let tasks = [];
   let tasksDeleted = [];
-  let currentFilter = 'all'; // 'all' | 'active' | 'completed'
+  let currentFilter = 'active'; // 'all' | 'active' | 'completed'
   let searchQuery = '';
   let editingTaskId = null;
 
@@ -271,6 +271,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
           });
         } else {
           li.innerHTML = `
+            <div class="task-date">${dateFormate(task.created_at)}</div>
             <div class="task-content">
               <label class="checkbox-container" title="${task.completed ? 'Mark incomplete' : 'Mark completed'}">
                 <input type="checkbox" ${task.completed ? 'checked' : ''} aria-label="Toggle completed state" />
@@ -468,6 +469,19 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
+  }
+
+  function dateFormate(createdat){
+    const date = new Date(createdat);
+    const formattedDate = date.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    return formattedDate;
   }
 
   //------------------------------------------------------------DB Functions------------------------------------
