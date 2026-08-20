@@ -102,7 +102,7 @@ body {
   gap: 0.35rem;
   position: sticky;
   top: 34px;
-  z-index: 99999;
+  z-index: 9;
   background: white;
 }
 

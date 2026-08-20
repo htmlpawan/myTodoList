@@ -1,7 +1,8 @@
 /**
  * Todo List Application Script
- * Clean Vanilla JavaScript (ES6+) with LocalStorage persistence,
- * real-time filtering, search, inline editing, and statistics.
+ * Vanilla JavaScript (ES6+) with Supabase persistence,
+ * real-time filtering, search, inline editing, statistics,
+ * and a full-page "deleted items" table modal (restore / permanently delete).
  */
 const SUPABASE_URL = 'https://uohtbbdehjskdpmoykrr.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_TrQxF_JcluMbyOraDq7KZQ_uFYtTnbB'; // safe to expose client-side
@@ -14,30 +15,9 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   // --- Constants & Config ---
   const STORAGE_KEY = 'todo_app_tasks_v1';
 
-  // Initial sample tasks for first-time users
-  const SAMPLE_TASKS = [
-    // {
-    //   id: 'task-1',
-    //   text: 'Welcome to your new Todo List! 👋',
-    //   completed: false,
-    //   createdAt: Date.now() - 10000,
-    // },
-    // {
-    //   id: 'task-2',
-    //   text: 'Mark tasks as completed by checking the box',
-    //   completed: true,
-    //   createdAt: Date.now() - 5000,
-    // },
-    // {
-    //   id: 'task-3',
-    //   text: 'Search or filter your tasks anytime using the controls above',
-    //   completed: false,
-    //   createdAt: Date.now(),
-    // },
-  ];
-
   // --- Application State ---
   let tasks = [];
+  let tasksDeleted = [];
   let currentFilter = 'all'; // 'all' | 'active' | 'completed'
   let searchQuery = '';
   let editingTaskId = null;
@@ -62,32 +42,25 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
   const countActive = document.getElementById('count-active');
   const countCompleted = document.getElementById('count-completed');
 
+  // List Modal Elements
+  const listTitleTrigger = document.getElementById('list-title-trigger');
+  const listModalOverlay = document.getElementById('list-modal-overlay');
+  const listModalClose = document.getElementById('list-modal-close');
+  const listModalTbody = document.getElementById('list-modal-tbody');
+  const listModalEmpty = document.getElementById('list-modal-empty');
+  let isListModalOpen = false;
+
   // --- Storage Helper Functions ---
-   async function loadTasks() {
+  async function loadTasks() {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-       const getData = await loadTasksDB();
-        tasks = JSON.parse(stored);
-        tasks = getData;
-        saveTasks();
-      
+      tasks = await loadTasksDB();
+      saveTasks();
+
+      tasksDeleted = await loadTasksDeletedDB();
     } catch (e) {
-      console.error('Failed to parse tasks from localStorage:', e);
-      //tasks = [...SAMPLE_TASKS];
+      console.error('Failed to load tasks:', e);
     }
-    
   }
-
-//   async function loadTasks() {
-//   try {
-//     tasks = await loadTasksDB();
-//     allData = tasks;
-//   } catch (e) {
-//     console.error('Failed to load tasks:', e);
-//     tasks = [];
-//   }
-// }
-
 
   async function saveTasks() {
     try {
@@ -105,7 +78,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     const newTask = {
       id: 'task-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       text: trimmed,
-      completed: false
+      completed: false,
     };
 
     tasks.unshift(newTask); // Add to top of list
@@ -114,35 +87,31 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     render();
   }
 
-
-
   function toggleTask(id) {
     tasks = tasks.map((task) => {
       if (task.id === id) {
-      console.log(!task.completed);
-      toggleTaskDB(id, !task.completed);
-      return { ...task, completed: !task.completed };
+        toggleTaskDB(id, !task.completed);
+        return { ...task, completed: !task.completed };
       }
       return task;
     });
-    saveTasks();;
+    saveTasks();
     render();
   }
 
   function deleteTask(id) {
-    deleteTaskDB(id);
+    deleteTaskDB(id); // soft delete (status = 1)
     const taskElement = document.querySelector(`[data-id="${id}"]`);
     if (taskElement) {
       taskElement.classList.add('removing');
-      // Wait for CSS animation before removing from state
       setTimeout(() => {
         tasks = tasks.filter((task) => task.id !== id);
-        saveTasks();;
+        saveTasks();
         render();
       }, 250);
     } else {
       tasks = tasks.filter((task) => task.id !== id);
-      saveTasks();;
+      saveTasks();
       render();
     }
   }
@@ -162,7 +131,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
         }
         return task;
       });
-      saveTasks();;
+      saveTasks();
     }
     editingTaskId = null;
     render();
@@ -175,18 +144,31 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 
   function clearCompleted() {
     tasks = tasks.filter((task) => !task.completed);
-    saveTasks();;
+    saveTasks();
     render();
+  }
+
+  // --- Restore / Permanently delete a soft-deleted task ---
+  async function handleRestoreTask(id) {
+    await restoreTask(id);
+    // Move it back from tasksDeleted into tasks locally, then re-sync from DB
+    await loadTasks();
+    render(); // refreshes stats + main list
+    renderListModalTable(); // refreshes the modal table
+  }
+
+  async function handleDeletePermanentTask(id) {
+    await deletePermanentTask(id);
+    tasksDeleted = tasksDeleted.filter((t) => t.id !== id);
+    renderListModalTable();
   }
 
   // --- Filtering & Counting Helpers ---
   function getFilteredTasks() {
     return tasks.filter((task) => {
-      // Apply Filter Tab
       if (currentFilter === 'active' && task.completed) return false;
       if (currentFilter === 'completed' && !task.completed) return false;
 
-      // Apply Search Query
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         return task.text.toLowerCase().includes(query);
@@ -209,10 +191,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     countActive.textContent = pendingCount;
     countCompleted.textContent = completedCount;
 
-    // Show/hide Clear Completed button
     if (completedCount > 0) {
-      //localStorage.removeItem('todo_app_tasks_v1'); // Ensure storage is updated
-      //render();
       clearCompletedBtn.classList.remove('hidden');
     } else {
       clearCompletedBtn.classList.add('hidden');
@@ -224,11 +203,9 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     updateStatistics();
     const filteredTasks = getFilteredTasks();
 
-    // Clear task list
     taskList.innerHTML = '';
 
     if (filteredTasks.length === 0) {
-      // Render Empty State
       taskList.classList.add('hidden');
       emptyState.classList.remove('hidden');
 
@@ -255,7 +232,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
         li.setAttribute('data-id', task.id);
 
         if (editingTaskId === task.id) {
-          // --- Inline Edit Mode ---
           li.innerHTML = `
             <form class="edit-form" id="edit-form-${task.id}">
               <input 
@@ -270,12 +246,10 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
             </form>
           `;
 
-          // Event Listeners for Edit Mode
           const editForm = li.querySelector('.edit-form');
           const editInput = li.querySelector('.edit-input');
           const cancelBtn = li.querySelector('.cancel-btn');
 
-          // Auto-focus and select edit input
           setTimeout(() => {
             editInput.focus();
             editInput.setSelectionRange(editInput.value.length, editInput.value.length);
@@ -290,14 +264,12 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
             cancelEditTask();
           });
 
-          // Cancel on Escape key
           editInput.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
               cancelEditTask();
             }
           });
         } else {
-          // --- Normal View Mode ---
           li.innerHTML = `
             <div class="task-content">
               <label class="checkbox-container" title="${task.completed ? 'Mark incomplete' : 'Mark completed'}">
@@ -322,19 +294,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
             </div>
           `;
 
-          // Checkbox toggle event listener
           const checkbox = li.querySelector('input[type="checkbox"]');
           checkbox.addEventListener('change', () => toggleTask(task.id));
 
-          // Task text double click to edit
           const taskTextSpan = li.querySelector('.task-text');
           taskTextSpan.addEventListener('dblclick', () => startEditTask(task.id));
 
-          // Edit button
           const editBtn = li.querySelector('.edit-btn');
           editBtn.addEventListener('click', () => startEditTask(task.id));
 
-          // Delete button
           const deleteBtn = li.querySelector('.delete-btn');
           deleteBtn.addEventListener('click', () => deleteTask(task.id));
         }
@@ -344,9 +312,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     }
   }
 
-  // Helper to escape HTML special characters for safety
   function escapeHtml(str) {
-    return str
+    return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -354,9 +321,59 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       .replace(/'/g, '&#039;');
   }
 
+  // --- List Modal (deleted items table) ---
+  function renderListModalTable() {
+    if (!listModalTbody) return;
+
+    if (tasksDeleted.length === 0) {
+      listModalTbody.innerHTML = '';
+      listModalEmpty.classList.remove('hidden');
+      return;
+    }
+
+    listModalEmpty.classList.add('hidden');
+    listModalTbody.innerHTML = tasksDeleted
+      .map((task) => {
+        const statusClass = task.completed ? 'completed' : 'pending';
+        const statusLabel = task.completed ? 'Completed' : 'Pending';
+        // NOTE: data-id (not inline onclick) — avoids the global-scope
+        // and unquoted-UUID issues that broke restore/delete before.
+        return `
+          <tr data-id="${escapeHtml(String(task.id))}">
+            <td>${escapeHtml(task.text)}</td>
+            <td><span class="list-status-badge ${statusClass}">${statusLabel}</span></td>
+            <td class="restore-cell">
+              <img src="restore.png" class="restore-btn" alt="Restore" width="24" height="24" style="cursor:pointer;" />
+              <button type="button" class="action-btn delete-btn delete-permanent-btn" title="Delete permanently" aria-label="Delete permanently" style="color: red;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
+  async function openListModal() {
+    tasksDeleted = await loadTasksDeletedDB();
+    isListModalOpen = true;
+    renderListModalTable();
+    listModalOverlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeListModal() {
+    isListModalOpen = false;
+    listModalOverlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    location.reload();
+  }
+
   // --- Event Listeners Setup ---
   function initEventListeners() {
-    // Form submit to add new task
     todoForm.addEventListener('submit', (e) => {
       e.preventDefault();
       addTask(taskInput.value);
@@ -364,7 +381,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       taskInput.focus();
     });
 
-    // Real-time search input
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       if (searchQuery.trim().length > 0) {
@@ -375,7 +391,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       render();
     });
 
-    // Clear search button
     clearSearchBtn.addEventListener('click', () => {
       searchInput.value = '';
       searchQuery = '';
@@ -384,7 +399,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       render();
     });
 
-    // Filter Buttons
     filterBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
         filterBtns.forEach((b) => b.classList.remove('active'));
@@ -394,31 +408,74 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
       });
     });
 
-    // Clear completed button
     clearCompletedBtn.addEventListener('click', () => {
       clearCompleted();
     });
+
+    // List Modal open/close
+    if (listTitleTrigger) {
+      listTitleTrigger.addEventListener('click', () => {
+        openListModal();
+      });
+    }
+    if (listModalClose) {
+      listModalClose.addEventListener('click', () => {
+        closeListModal();
+      });
+    }
+    if (listModalOverlay) {
+      listModalOverlay.addEventListener('click', (e) => {
+        if (e.target === listModalOverlay) {
+          closeListModal();
+        }
+      });
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isListModalOpen) {
+        closeListModal();
+      }
+    });
+
+    // Restore / permanent-delete buttons inside the modal table
+    // Event delegation: one listener on the tbody handles clicks on
+    // any current or future row, reading the id from the row's data-id.
+    if (listModalTbody) {
+      listModalTbody.addEventListener('click', (e) => {
+        const row = e.target.closest('tr[data-id]');
+        if (!row) return;
+        const id = row.getAttribute('data-id');
+
+        if (e.target.closest('.restore-btn')) {
+          handleRestoreTask(id);
+          return;
+        }
+        if (e.target.closest('.delete-permanent-btn')) {
+          handleDeletePermanentTask(id);
+          return;
+        }
+      });
+    }
   }
 
   // --- Initialization ---
- async function init() {
+  async function init() {
     await loadTasks();
     initEventListeners();
     render();
   }
 
-  // Start app when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
-  
-//------------------------------------------------------------DB Functions------------------------------------
+
+  //------------------------------------------------------------DB Functions------------------------------------
   async function loadTasksDB() {
     const { data, error } = await supabaseClient
       .from('tasks')
       .select('*')
+      .eq('status', false)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -428,57 +485,71 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     return data;
   }
 
+  async function loadTasksDeletedDB() {
+    const { data, error } = await supabaseClient
+      .from('tasks')
+      .select('*')
+      .eq('status', true)
+      .order('created_at', { ascending: false });
 
-async function addTaskDB(dataJson) {
-  const { data, error } = await supabaseClient
-    .from('tasks')
-    .insert([dataJson])
-    .select(); // returns the inserted row(s)
-
-  if (error) {
-    console.error('Insert failed:', error);
-    return null;
+    if (error) {
+      console.error('Fetch failed:', error);
+      return [];
+    }
+    return data;
   }
-  return data[0];
-}
 
-async function deleteTaskDB(id) {
-  const { error } = await supabaseClient
-    .from('tasks')
-    .delete()
-    .eq('id', id);
+  async function addTaskDB(dataJson) {
+    const { data, error } = await supabaseClient
+      .from('tasks')
+      .insert([dataJson])
+      .select();
 
-  if (error) console.error('Delete failed:', error);
-}
+    if (error) {
+      console.error('Insert failed:', error);
+      return null;
+    }
+    return data[0];
+  }
 
-async function toggleTaskDB(id, completed) {
-  const { error } = await supabaseClient
-    .from('tasks')
-    .update({ completed: completed })
-    .eq('id', id);
+  async function deleteTaskDB(id) {
+    const { error } = await supabaseClient.from('tasks').update({ status: 1 }).eq('id', id);
+    if (error) console.error('Delete failed:', error);
+  }
 
-  if (error) console.error('toggle failed:', error);
-}
+  async function restoreTask(id) {
+    const { error } = await supabaseClient.from('tasks').update({ status: 0 }).eq('id', id);
+    if (error) console.error('Restore failed:', error);
+  }
 
-async function updateTextDB(id, text) {
-  const { error } = await supabaseClient
-    .from('tasks')
-    .update({ text: text })
-    .eq('id', id);
+  async function deletePermanentTask(id) {
+    const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
+    if (error) console.error('Permanent delete failed:', error);
+  }
 
-  if (error) console.error('Update failed:', error);
-}
+  async function toggleTaskDB(id, completed) {
+    const { error } = await supabaseClient
+      .from('tasks')
+      .update({ completed: completed })
+      .eq('id', id);
+    if (error) console.error('Toggle failed:', error);
+  }
 
-//------------------------------Service Worker Registration---------------------------------------------
+  async function updateTextDB(id, text) {
+    const { error } = await supabaseClient
+      .from('tasks')
+      .update({ text: text })
+      .eq('id', id);
+    if (error) console.error('Update failed:', error);
+  }
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('sw.js')
-      .then((reg) => console.log('Service Worker registered:', reg.scope))
-      .catch((err) => console.error('Service Worker registration failed:', err));
-  });
-}
-
+  //------------------------------Service Worker Registration---------------------------------------------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('sw.js')
+        .then((reg) => console.log('Service Worker registered:', reg.scope))
+        .catch((err) => console.error('Service Worker registration failed:', err));
+    });
+  }
 })();
-
