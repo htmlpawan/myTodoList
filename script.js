@@ -345,7 +345,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
             <td class="restore-cell">
               <img src="restore.png" class="restore-btn" alt="Restore" width="24" height="24" style="cursor:pointer;" />
               <button type="button" class="action-btn delete-btn delete-permanent-btn" title="Delete permanently" aria-label="Delete permanently" style="color: red;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
@@ -512,17 +512,17 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
     return data[0];
   }
 
-  async function deleteTaskDB(id) {
+  async function deleteTaskDB(id) {  // soft delete (status = 1)
     const { error } = await supabaseClient.from('tasks').update({ status: 1 }).eq('id', id);
     if (error) console.error('Delete failed:', error);
   }
 
-  async function restoreTask(id) {
+  async function restoreTask(id) { // restore (status = 0)
     const { error } = await supabaseClient.from('tasks').update({ status: 0 }).eq('id', id);
     if (error) console.error('Restore failed:', error);
   }
 
-  async function deletePermanentTask(id) {
+  async function deletePermanentTask(id) { // permanently delete from DB
     const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
     if (error) console.error('Permanent delete failed:', error);
   }
